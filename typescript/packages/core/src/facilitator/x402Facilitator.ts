@@ -457,7 +457,35 @@ export class x402Facilitator {
         facilitatorContext,
       );
 
-      // Execute afterSettle hooks
+      // Check if settlement failed (success: false)
+      if (!settleResult.success) {
+        const reason = settleResult.errorReason || "Settlement failed";
+        const detail = settleResult.errorMessage;
+        const failureContext: FacilitatorSettleFailureContext = {
+          ...context,
+          error: new Error(detail ? `${reason}: ${detail}` : reason),
+        };
+
+        // Execute onSettleFailure hooks
+        for (const hook of this.onSettleFailureHooks) {
+          const result = await hook(failureContext);
+          if (result && "recovered" in result && result.recovered) {
+            // If recovered, execute afterSettle hooks with recovered result
+            const recoveredContext: FacilitatorSettleResultContext = {
+              ...context,
+              result: result.result,
+            };
+            for (const hook of this.afterSettleHooks) {
+              await hook(recoveredContext);
+            }
+            return result.result;
+          }
+        }
+
+        return settleResult;
+      }
+
+      // Execute afterSettle hooks only for successful settlement
       const resultContext: FacilitatorSettleResultContext = {
         ...context,
         result: settleResult,

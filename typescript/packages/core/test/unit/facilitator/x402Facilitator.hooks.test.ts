@@ -320,6 +320,65 @@ describe("x402Facilitator - Lifecycle Hooks", () => {
   });
 
   describe("onSettleFailure", () => {
+    it("should run failure hooks, not afterSettle, when settlement returns success false", async () => {
+      const facilitator = new x402Facilitator();
+      facilitator.register(
+        "eip155:8453",
+        new MockSchemeFacilitator(undefined, async (_, requirements) => ({
+          success: false,
+          errorReason: "invalid_exact_evm_transaction_failed",
+          errorMessage: "execution reverted",
+          transaction: "0xRevertedTx",
+          network: requirements.network,
+        })),
+      );
+
+      let capturedError: Error | undefined;
+      const afterSettle = vi.fn();
+      facilitator
+        .onSettleFailure(async context => {
+          capturedError = context.error;
+        })
+        .onAfterSettle(afterSettle);
+
+      const result = await facilitator.settle(buildPaymentPayload(), buildPaymentRequirements());
+
+      expect(result.success).toBe(false);
+      expect(result.errorReason).toBe("invalid_exact_evm_transaction_failed");
+      expect(capturedError?.message).toBe(
+        "invalid_exact_evm_transaction_failed: execution reverted",
+      );
+      expect(afterSettle).not.toHaveBeenCalled();
+    });
+
+    it("should recover from success false and run afterSettle with the recovered result", async () => {
+      const facilitator = new x402Facilitator();
+      facilitator.register(
+        "eip155:8453",
+        new MockSchemeFacilitator(undefined, async (_, requirements) => ({
+          success: false,
+          errorReason: "invalid_exact_evm_transaction_failed",
+          transaction: "",
+          network: requirements.network,
+        })),
+      );
+
+      const recovered: SettleResponse = {
+        success: true,
+        transaction: "0xRecoveredFromFailed",
+        network: "eip155:8453",
+      };
+      const afterSettle = vi.fn();
+      facilitator
+        .onSettleFailure(async () => ({ recovered: true, result: recovered }))
+        .onAfterSettle(afterSettle);
+
+      const result = await facilitator.settle(buildPaymentPayload(), buildPaymentRequirements());
+
+      expect(result).toEqual(recovered);
+      expect(afterSettle).toHaveBeenCalledWith(expect.objectContaining({ result: recovered }));
+    });
+
     it("should execute hook when settlement fails", async () => {
       const facilitator = new x402Facilitator();
 
