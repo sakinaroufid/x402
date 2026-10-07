@@ -1,0 +1,3 @@
+kind: fixed
+body: Fixed SIWS messages without a statement having an extra blank line, which made Solana sign-in signatures from TypeScript and Python clients fail to verify.
+time: 2026-10-07T00:00:00Z

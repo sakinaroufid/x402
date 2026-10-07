@@ -195,6 +195,32 @@ func TestFormatSIWSMessage(t *testing.T) {
 	}
 }
 
+func TestFormatSIWSMessageWithoutStatement(t *testing.T) {
+	payload := testSolanaPayload()
+	payload.Statement = ""
+
+	got, err := FormatSIWSMessage(payload)
+	if err != nil {
+		t.Fatalf("FormatSIWSMessage() error = %v", err)
+	}
+
+	want := "api.example.com wants you to sign in with your Solana account:\n" +
+		"6nYoFimREYaxQZZqBv7vbSd6ozGS1J8uhAAgUXPtaYy6\n\n" +
+		"URI: https://api.example.com/data\n" +
+		"Version: 1\n" +
+		"Chain ID: 5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp\n" +
+		"Nonce: abc123xyz\n" +
+		"Issued At: 2026-05-27T00:00:00Z\n" +
+		"Expiration Time: 2026-05-27T00:05:00Z\n" +
+		"Request ID: request-1\n" +
+		"Resources:\n" +
+		"- https://api.example.com/data"
+
+	if got != want {
+		t.Fatalf("message =\n%s\nwant =\n%s", got, want)
+	}
+}
+
 func TestExtractSolanaChainReference(t *testing.T) {
 	got, err := ExtractSolanaChainReference(SolanaDevnet)
 	if err != nil {
